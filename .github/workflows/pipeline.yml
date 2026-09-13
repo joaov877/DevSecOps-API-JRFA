@@ -236,14 +236,27 @@ jobs:
 
   deploy-ghcr:
     name: Continuous Delivery (GHCR)
-    # Exige aprovação de TODOS os jobs de CI e Segurança antes de prosseguir
-    needs: [code-quality, unit-tests, static-security-sast, dependency-audit-sca, dynamic-security-dast]
-    # Executa apenas em pushes diretos ou merges nas branches principais de produção
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    needs:
+      - code-quality
+      - unit-tests
+      - static-security-sast
+      - dependency-audit-sca
+      - dynamic-security-dast
+
+    if: >
+      github.event_name == 'push' &&
+      (
+        github.ref == 'refs/heads/main' ||
+        github.ref == 'refs/heads/master'
+      )
+
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
-      packages: write 
+      packages: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -258,34 +271,31 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Docker Image Locally
+      - name: Build Docker Image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          push: false # Retém o push para aguardar a validação do Trivy
-          tags: ghcr.io/${{ github.repository }}:latest
-          load: true # Disponibiliza a imagem compilada no daemon local do Docker do Runner
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@18f2590ed99ff3efce21e24ec5997ab9f187a5a1
-        with:
-          image-ref: 'ghcr.io/${{ github.repository }}:latest'
-          format: 'table'
-          exit-code: '1' # Falha a pipeline se encontrar falhas impeditivas
-          ignore-unfixed: true # Ignora vulnerabilidades sem correção upstream oficial
-          severity: 'CRITICAL,HIGH' # Bloqueia apenas riscos Altos e Críticos
-
-      - name: Push Docker Image to GHCR
-        if: success()
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
+          push: false
+          load: true
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
           cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy Vulnerability Scann
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}:latest
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - name: Push Docker Image to GHCR
+        if: success()
+        run: |
+          docker push ghcr.io/${{ github.repository }}:latest
+          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+
