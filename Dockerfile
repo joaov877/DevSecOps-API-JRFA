@@ -1,52 +1,57 @@
-FROM node:20-alpine AS builder
+
+# ============================================================
+# STAGE 1 — BUILD
+# ============================================================
+
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copia apenas os manifests primeiro (melhor cache de camadas)
-COPY package*.json ./
-
-# Instala TODAS as dependências (inclui devDependencies para o tsc)
+# Instala exatamente as versões do package-lock.json.
+# Mantém devDependencies disponíveis para o TypeScript.
+COPY package.json package-lock.json ./
 RUN npm ci
 
-# Copia o código-fonte e configs necessários para o build
+# Copia somente os arquivos necessários para o build.
 COPY tsconfig.json ./
 COPY src ./src
 
-# Compila TypeScript -> dist/
+# Compila TypeScript para dist/
 RUN npm run build
 
-# Remove devDependencies para deixar node_modules enxuto
+# Remove dependências de desenvolvimento.
 RUN npm prune --omit=dev
 
 
-# STAGE 2: RUNTIME
+# ============================================================
+# STAGE 2 — RUNTIME
+# ============================================================
 
+FROM node:22-alpine AS runtime
 
-FROM node:20-alpine AS runtime
-
-# Cria usuário sem privilégios (não usar root)
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
-WORKDIR /app
-
-# Variáveis de ambiente seguras para produção
 ENV NODE_ENV=production \
     PORT=3000
 
-# Copia apenas o necessário da stage anterior
+# Usuário sem privilégios.
+RUN addgroup -S appgroup \
+    && adduser -S appuser -G appgroup
+
+WORKDIR /app
+
+# Copia somente o necessário para execução.
 COPY --from=builder --chown=appuser:appgroup /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
-COPY --from=builder --chown=appuser:appgroup /app/package*.json ./
+COPY --from=builder --chown=appuser:appgroup /app/package.json ./package.json
 
-# Troca para o usuário sem privilégios
 USER appuser
 
-# Expõe a porta da aplicação
 EXPOSE 3000
 
-# Healthcheck usando o endpoint já existente /api/health
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+# Verifica a saúde da API.
+HEALTHCHECK --interval=30s \
+    --timeout=5s \
+    --start-period=20s \
+    --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
 
-# Comando de inicialização
 CMD ["node", "dist/server.js"]
