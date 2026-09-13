@@ -156,12 +156,14 @@ jobs:
       - name: Build application
         run: npm run build
 
-      # 🚀 CORREÇÃO: Inicialização e wait-on unificados no mesmo Step para evitar o encerramento do processo
       - name: Start API and Wait Until Ready
         run: |
-          npm run start > api.log 2>&1 &
+          echo "Iniciando compilação de produção e validação de inicialização..."
+          npm run start &
+          
           echo "Aguardando a API responder na porta 3000..."
-          npx wait-on http://localhost:3000 --timeout 45000
+          # Aumentado para 60 segundos com intervalo de checagem mais tolerante
+          npx wait-on http://localhost:3000 --timeout 60000 --interval 2000
         env:
           NODE_ENV: production
           PORT: 3000
