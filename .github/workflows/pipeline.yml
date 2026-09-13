@@ -270,7 +270,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@18f2590ed99ff3efce21e24ec5997ab9f187a5a1
         with:
           image-ref: 'ghcr.io/${{ github.repository }}:latest'
           format: 'table'
