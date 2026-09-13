@@ -8,3 +8,9 @@ Dockerfile
 .dockerignore
 eslint.config.mjs
 jest.config.js
+.env
+.env.*
+*.log
+npm-debug.log*
+Dockerfile*
+docker-compose*.yml
