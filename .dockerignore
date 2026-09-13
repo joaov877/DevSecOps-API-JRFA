@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+.git
+.github
+README.md
+Dockerfile
+.dockerignore
+eslint.config.mjs
+jest.config.js
