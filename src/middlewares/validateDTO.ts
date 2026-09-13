@@ -1,10 +1,15 @@
 import { Request, Response, NextFunction } from "express";
 import { validate } from "class-validator";
-import { plainToInstance } from "class-transformer";
+import { plainToInstance, ClassConstructor } from "class-transformer";
 
-export function validateDTO(dtoClass: any) {
-  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+export function validateDTO(dtoClass: ClassConstructor<object>) {
+  return async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     const dtoInstance = plainToInstance(dtoClass, req.body);
+
     const errors = await validate(dtoInstance, {
       whitelist: true,
       forbidNonWhitelisted: true,
@@ -18,11 +23,12 @@ export function validateDTO(dtoClass: any) {
         })
         .flat();
 
-      _res.status(400).json({
+      res.status(400).json({
         status: "error",
         message: "Erro de validação",
         errors: messages,
       });
+
       return;
     }
 

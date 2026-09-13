@@ -23,8 +23,10 @@ import { AppointmentService } from "../../services/AppointmentService";
 import { AppointmentRepository } from "../../repositories/AppointmentRepository";
 import { PatientRepository } from "../../repositories/PatientRepository";
 import { DoctorRepository } from "../../repositories/DoctorRepository";
-import { AppError } from "../../errors/AppError";
-import { AppointmentStatus } from "../../entities/Appointment";
+//import { AppError } from "../../errors/AppError";
+import { Appointment, AppointmentStatus } from "../../entities/Appointment";
+import { Patient } from "../../entities/Patient";
+import { Doctor } from "../../entities/Doctor";
 import { CreateAppointmentDTO } from "../../dtos/AppointmentDTO";
 
 describe("AppointmentService", () => {
@@ -32,6 +34,12 @@ describe("AppointmentService", () => {
   let mockAppointmentRepo: jest.Mocked<AppointmentRepository>;
   let mockPatientRepo: jest.Mocked<PatientRepository>;
   let mockDoctorRepo: jest.Mocked<DoctorRepository>;
+
+  type ServiceRepositories = {
+    appointmentRepository: jest.Mocked<AppointmentRepository>;
+    patientRepository: jest.Mocked<PatientRepository>;
+    doctorRepository: jest.Mocked<DoctorRepository>;
+  };
 
   const mockPatient = {
     id: "uuid-patient-1",
@@ -73,15 +81,16 @@ describe("AppointmentService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new AppointmentService();
-    mockAppointmentRepo = (service as any).appointmentRepository as jest.Mocked<AppointmentRepository>;
-    mockPatientRepo = (service as any).patientRepository as jest.Mocked<PatientRepository>;
-    mockDoctorRepo = (service as any).doctorRepository as jest.Mocked<DoctorRepository>;
+    const repositories = service as unknown as ServiceRepositories;
+    mockAppointmentRepo = repositories.appointmentRepository;
+    mockPatientRepo = repositories.patientRepository;
+    mockDoctorRepo = repositories.doctorRepository;
   });
 
   // ─── findAll ──────────────────────────────────────────────
   describe("findAll", () => {
     it("deve retornar lista de agendamentos", async () => {
-      mockAppointmentRepo.findAll.mockResolvedValue([mockAppointment as any]);
+      mockAppointmentRepo.findAll.mockResolvedValue([mockAppointment as Appointment]);
       const result = await service.findAll();
       expect(result).toEqual([mockAppointment]);
       expect(mockAppointmentRepo.findAll).toHaveBeenCalledTimes(1);
@@ -91,7 +100,7 @@ describe("AppointmentService", () => {
   // ─── findById ─────────────────────────────────────────────
   describe("findById", () => {
     it("deve retornar o agendamento quando encontrado", async () => {
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
       const result = await service.findById("uuid-appointment-1");
       expect(result).toEqual(mockAppointment);
     });
@@ -108,8 +117,8 @@ describe("AppointmentService", () => {
   // ─── findByDoctorId ───────────────────────────────────────
   describe("findByDoctorId", () => {
     it("deve retornar agendamentos de um médico", async () => {
-      mockDoctorRepo.findById.mockResolvedValue(mockDoctor as any);
-      mockAppointmentRepo.findByDoctorId.mockResolvedValue([mockAppointment as any]);
+      mockDoctorRepo.findById.mockResolvedValue(mockDoctor as Doctor);
+      mockAppointmentRepo.findByDoctorId.mockResolvedValue([mockAppointment as Appointment]);
       const result = await service.findByDoctorId("uuid-doctor-1");
       expect(result).toEqual([mockAppointment]);
     });
@@ -126,8 +135,8 @@ describe("AppointmentService", () => {
   // ─── findByPatientId ──────────────────────────────────────
   describe("findByPatientId", () => {
     it("deve retornar agendamentos de um paciente", async () => {
-      mockPatientRepo.findById.mockResolvedValue(mockPatient as any);
-      mockAppointmentRepo.findByPatientId.mockResolvedValue([mockAppointment as any]);
+      mockPatientRepo.findById.mockResolvedValue(mockPatient as Patient);
+      mockAppointmentRepo.findByPatientId.mockResolvedValue([mockAppointment as Appointment]);
       const result = await service.findByPatientId("uuid-patient-1");
       expect(result).toEqual([mockAppointment]);
     });
@@ -151,10 +160,10 @@ describe("AppointmentService", () => {
     };
 
     it("deve criar um agendamento com sucesso", async () => {
-      mockPatientRepo.findById.mockResolvedValue(mockPatient as any);
-      mockDoctorRepo.findById.mockResolvedValue(mockDoctor as any);
+      mockPatientRepo.findById.mockResolvedValue(mockPatient as Patient);
+      mockDoctorRepo.findById.mockResolvedValue(mockDoctor as Doctor);
       mockAppointmentRepo.findConflict.mockResolvedValue(null);
-      mockAppointmentRepo.create.mockResolvedValue(mockAppointment as any);
+      mockAppointmentRepo.create.mockResolvedValue(mockAppointment as Appointment);
 
       const result = await service.create(createDTO);
 
@@ -175,7 +184,7 @@ describe("AppointmentService", () => {
     });
 
     it("deve lançar AppError 404 quando médico não existe", async () => {
-      mockPatientRepo.findById.mockResolvedValue(mockPatient as any);
+      mockPatientRepo.findById.mockResolvedValue(mockPatient as Patient);
       mockDoctorRepo.findById.mockResolvedValue(null);
       await expect(service.create(createDTO)).rejects.toMatchObject({
         statusCode: 404,
@@ -186,8 +195,8 @@ describe("AppointmentService", () => {
 
     it("deve lançar AppError 400 quando data é no passado", async () => {
       const pastDTO = { ...createDTO, dateTime: "2020-01-01T10:00:00.000Z" };
-      mockPatientRepo.findById.mockResolvedValue(mockPatient as any);
-      mockDoctorRepo.findById.mockResolvedValue(mockDoctor as any);
+      mockPatientRepo.findById.mockResolvedValue(mockPatient as Patient);
+      mockDoctorRepo.findById.mockResolvedValue(mockDoctor as Doctor);
 
       await expect(service.create(pastDTO)).rejects.toMatchObject({
         statusCode: 400,
@@ -197,9 +206,9 @@ describe("AppointmentService", () => {
     });
 
     it("deve lançar AppError 409 quando há conflito de horário", async () => {
-      mockPatientRepo.findById.mockResolvedValue(mockPatient as any);
-      mockDoctorRepo.findById.mockResolvedValue(mockDoctor as any);
-      mockAppointmentRepo.findConflict.mockResolvedValue(mockAppointment as any);
+      mockPatientRepo.findById.mockResolvedValue(mockPatient as Patient);
+      mockDoctorRepo.findById.mockResolvedValue(mockDoctor as Doctor);
+      mockAppointmentRepo.findConflict.mockResolvedValue(mockAppointment as Appointment);
 
       await expect(service.create(createDTO)).rejects.toMatchObject({
         statusCode: 409,
@@ -209,10 +218,10 @@ describe("AppointmentService", () => {
     });
 
     it("deve verificar conflito com janela de 1 hora (±30 min)", async () => {
-      mockPatientRepo.findById.mockResolvedValue(mockPatient as any);
-      mockDoctorRepo.findById.mockResolvedValue(mockDoctor as any);
+      mockPatientRepo.findById.mockResolvedValue(mockPatient as Patient);
+      mockDoctorRepo.findById.mockResolvedValue(mockDoctor as Doctor);
       mockAppointmentRepo.findConflict.mockResolvedValue(null);
-      mockAppointmentRepo.create.mockResolvedValue(mockAppointment as any);
+      mockAppointmentRepo.create.mockResolvedValue(mockAppointment as Appointment);
 
       await service.create(createDTO);
 
@@ -230,8 +239,8 @@ describe("AppointmentService", () => {
   describe("update", () => {
     it("deve atualizar o agendamento com sucesso", async () => {
       const updatedAppointment = { ...mockAppointment, notes: "Nota atualizada" };
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
-      mockAppointmentRepo.update.mockResolvedValue(updatedAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
+      mockAppointmentRepo.update.mockResolvedValue(updatedAppointment as Appointment);
 
       const result = await service.update("uuid-appointment-1", { notes: "Nota atualizada" });
       expect(result.notes).toBe("Nota atualizada");
@@ -239,7 +248,7 @@ describe("AppointmentService", () => {
 
     it("deve lançar AppError 400 quando consulta está cancelada", async () => {
       const cancelledAppointment = { ...mockAppointment, status: AppointmentStatus.CANCELLED };
-      mockAppointmentRepo.findById.mockResolvedValue(cancelledAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(cancelledAppointment as Appointment);
       await expect(
         service.update("uuid-appointment-1", { notes: "Teste" })
       ).rejects.toMatchObject({
@@ -250,7 +259,7 @@ describe("AppointmentService", () => {
 
     it("deve lançar AppError 400 quando consulta está concluída", async () => {
       const completedAppointment = { ...mockAppointment, status: AppointmentStatus.COMPLETED };
-      mockAppointmentRepo.findById.mockResolvedValue(completedAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(completedAppointment as Appointment);
       await expect(
         service.update("uuid-appointment-1", { notes: "Teste" })
       ).rejects.toMatchObject({
@@ -263,16 +272,16 @@ describe("AppointmentService", () => {
       const newFutureDate = new Date();
       newFutureDate.setDate(newFutureDate.getDate() + 14);
 
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
       mockAppointmentRepo.findConflict.mockResolvedValue(null);
-      mockAppointmentRepo.update.mockResolvedValue({ ...mockAppointment, dateTime: newFutureDate } as any);
+      mockAppointmentRepo.update.mockResolvedValue({ ...mockAppointment, dateTime: newFutureDate } as Appointment);
 
       await service.update("uuid-appointment-1", { dateTime: newFutureDate.toISOString() });
       expect(mockAppointmentRepo.findConflict).toHaveBeenCalledTimes(1);
     });
 
     it("deve lançar AppError 400 quando nova data é no passado", async () => {
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
       await expect(
         service.update("uuid-appointment-1", { dateTime: "2020-01-01T10:00:00.000Z" })
       ).rejects.toMatchObject({ statusCode: 400 });
@@ -282,9 +291,9 @@ describe("AppointmentService", () => {
       const newFutureDate = new Date();
       newFutureDate.setDate(newFutureDate.getDate() + 14);
 
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
-      mockAppointmentRepo.findConflict.mockResolvedValue(mockAppointment as any); // mesmo ID
-      mockAppointmentRepo.update.mockResolvedValue({ ...mockAppointment, dateTime: newFutureDate } as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
+      mockAppointmentRepo.findConflict.mockResolvedValue(mockAppointment as Appointment); // mesmo ID
+      mockAppointmentRepo.update.mockResolvedValue({ ...mockAppointment, dateTime: newFutureDate } as Appointment);
 
       const result = await service.update("uuid-appointment-1", { dateTime: newFutureDate.toISOString() });
       expect(result).toBeDefined();
@@ -296,8 +305,8 @@ describe("AppointmentService", () => {
       newFutureDate.setDate(newFutureDate.getDate() + 14);
 
       const outroAppointment = { ...mockAppointment, id: "uuid-outro" };
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
-      mockAppointmentRepo.findConflict.mockResolvedValue(outroAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
+      mockAppointmentRepo.findConflict.mockResolvedValue(outroAppointment as Appointment);
 
       await expect(
         service.update("uuid-appointment-1", { dateTime: newFutureDate.toISOString() })
@@ -310,7 +319,7 @@ describe("AppointmentService", () => {
     });
 
     it("deve lançar AppError 500 quando update retorna null", async () => {
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
       mockAppointmentRepo.update.mockResolvedValue(null);
       await expect(service.update("uuid-appointment-1", { notes: "Teste" })).rejects.toMatchObject({ statusCode: 500 });
     });
@@ -320,8 +329,8 @@ describe("AppointmentService", () => {
   describe("cancel", () => {
     it("deve cancelar um agendamento com sucesso", async () => {
       const cancelledAppointment = { ...mockAppointment, status: AppointmentStatus.CANCELLED };
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
-      mockAppointmentRepo.update.mockResolvedValue(cancelledAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
+      mockAppointmentRepo.update.mockResolvedValue(cancelledAppointment as Appointment);
 
       const result = await service.cancel("uuid-appointment-1");
       expect(result.status).toBe(AppointmentStatus.CANCELLED);
@@ -332,7 +341,7 @@ describe("AppointmentService", () => {
 
     it("deve lançar AppError 400 quando consulta já está concluída", async () => {
       const completedAppointment = { ...mockAppointment, status: AppointmentStatus.COMPLETED };
-      mockAppointmentRepo.findById.mockResolvedValue(completedAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(completedAppointment as Appointment);
       await expect(service.cancel("uuid-appointment-1")).rejects.toMatchObject({
         statusCode: 400,
         message: "Não é possível cancelar uma consulta já concluída",
@@ -341,7 +350,7 @@ describe("AppointmentService", () => {
 
     it("deve lançar AppError 400 quando consulta já está cancelada", async () => {
       const cancelledAppointment = { ...mockAppointment, status: AppointmentStatus.CANCELLED };
-      mockAppointmentRepo.findById.mockResolvedValue(cancelledAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(cancelledAppointment as Appointment);
       await expect(service.cancel("uuid-appointment-1")).rejects.toMatchObject({
         statusCode: 400,
         message: "Esta consulta já está cancelada",
@@ -351,8 +360,8 @@ describe("AppointmentService", () => {
     it("deve cancelar consulta com status CONFIRMED", async () => {
       const confirmedAppointment = { ...mockAppointment, status: AppointmentStatus.CONFIRMED };
       const cancelledAppointment = { ...confirmedAppointment, status: AppointmentStatus.CANCELLED };
-      mockAppointmentRepo.findById.mockResolvedValue(confirmedAppointment as any);
-      mockAppointmentRepo.update.mockResolvedValue(cancelledAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(confirmedAppointment as Appointment);
+      mockAppointmentRepo.update.mockResolvedValue(cancelledAppointment as Appointment);
 
       const result = await service.cancel("uuid-appointment-1");
       expect(result.status).toBe(AppointmentStatus.CANCELLED);
@@ -364,7 +373,7 @@ describe("AppointmentService", () => {
     });
 
     it("deve lançar AppError 500 quando update retorna null", async () => {
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
       mockAppointmentRepo.update.mockResolvedValue(null);
       await expect(service.cancel("uuid-appointment-1")).rejects.toMatchObject({ statusCode: 500 });
     });
@@ -373,7 +382,7 @@ describe("AppointmentService", () => {
   // ─── delete ───────────────────────────────────────────────
   describe("delete", () => {
     it("deve deletar o agendamento com sucesso", async () => {
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
       mockAppointmentRepo.delete.mockResolvedValue(true);
       await expect(service.delete("uuid-appointment-1")).resolves.toBeUndefined();
     });
@@ -384,7 +393,7 @@ describe("AppointmentService", () => {
     });
 
     it("deve lançar AppError 500 quando delete falha", async () => {
-      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as any);
+      mockAppointmentRepo.findById.mockResolvedValue(mockAppointment as Appointment);
       mockAppointmentRepo.delete.mockResolvedValue(false);
       await expect(service.delete("uuid-appointment-1")).rejects.toMatchObject({ statusCode: 500 });
     });

@@ -21,12 +21,17 @@ jest.mock("../../repositories/PatientRepository");
 
 import { PatientService } from "../../services/PatientService";
 import { PatientRepository } from "../../repositories/PatientRepository";
+import { Patient } from "../../entities/Patient";
 import { AppError } from "../../errors/AppError";
 import { CreatePatientDTO } from "../../dtos/PatientDTO";
 
 describe("PatientService", () => {
   let service: PatientService;
   let mockRepo: jest.Mocked<PatientRepository>;
+
+  type ServiceRepository = {
+    patientRepository: jest.Mocked<PatientRepository>;
+  };
 
   const mockPatient = {
     id: "uuid-patient-1",
@@ -43,13 +48,13 @@ describe("PatientService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new PatientService();
-    mockRepo = (service as any).patientRepository as jest.Mocked<PatientRepository>;
+    mockRepo = (service as unknown as ServiceRepository).patientRepository;
   });
 
   // ─── findAll ──────────────────────────────────────────────
   describe("findAll", () => {
     it("deve retornar uma lista de pacientes", async () => {
-      mockRepo.findAll.mockResolvedValue([mockPatient as any]);
+      mockRepo.findAll.mockResolvedValue([mockPatient as Patient]);
 
       const result = await service.findAll();
 
@@ -69,7 +74,7 @@ describe("PatientService", () => {
   // ─── findById ─────────────────────────────────────────────
   describe("findById", () => {
     it("deve retornar o paciente quando encontrado", async () => {
-      mockRepo.findById.mockResolvedValue(mockPatient as any);
+      mockRepo.findById.mockResolvedValue(mockPatient as Patient);
 
       const result = await service.findById("uuid-patient-1");
 
@@ -101,7 +106,7 @@ describe("PatientService", () => {
     it("deve criar um paciente com sucesso", async () => {
       mockRepo.findByEmail.mockResolvedValue(null);
       mockRepo.findByCpf.mockResolvedValue(null);
-      mockRepo.create.mockResolvedValue({ ...mockPatient, ...createDTO, birthDate: new Date(createDTO.birthDate) } as any);
+      mockRepo.create.mockResolvedValue({ ...mockPatient, ...createDTO, birthDate: new Date(createDTO.birthDate) } as Patient);
 
       const result = await service.create(createDTO);
 
@@ -112,7 +117,7 @@ describe("PatientService", () => {
     });
 
     it("deve lançar AppError 409 quando email já existe", async () => {
-      mockRepo.findByEmail.mockResolvedValue(mockPatient as any);
+      mockRepo.findByEmail.mockResolvedValue(mockPatient as Patient);
 
       await expect(service.create(createDTO)).rejects.toMatchObject({
         statusCode: 409,
@@ -123,7 +128,7 @@ describe("PatientService", () => {
 
     it("deve lançar AppError 409 quando CPF já existe", async () => {
       mockRepo.findByEmail.mockResolvedValue(null);
-      mockRepo.findByCpf.mockResolvedValue(mockPatient as any);
+      mockRepo.findByCpf.mockResolvedValue(mockPatient as Patient);
 
       await expect(service.create(createDTO)).rejects.toMatchObject({
         statusCode: 409,
@@ -137,8 +142,8 @@ describe("PatientService", () => {
   describe("update", () => {
     it("deve atualizar o paciente com sucesso", async () => {
       const updatedPatient = { ...mockPatient, name: "João Atualizado" };
-      mockRepo.findById.mockResolvedValue(mockPatient as any);
-      mockRepo.update.mockResolvedValue(updatedPatient as any);
+      mockRepo.findById.mockResolvedValue(mockPatient as Patient);
+      mockRepo.update.mockResolvedValue(updatedPatient as Patient);
 
       const result = await service.update("uuid-patient-1", { name: "João Atualizado" });
 
@@ -147,8 +152,8 @@ describe("PatientService", () => {
 
     it("deve lançar AppError 409 quando novo email já existe em outro paciente", async () => {
       const outroPatient = { ...mockPatient, id: "uuid-outro", email: "novo@email.com" };
-      mockRepo.findById.mockResolvedValue(mockPatient as any);
-      mockRepo.findByEmail.mockResolvedValue(outroPatient as any);
+      mockRepo.findById.mockResolvedValue(mockPatient as Patient);
+      mockRepo.findByEmail.mockResolvedValue(outroPatient as Patient);
 
       await expect(
         service.update("uuid-patient-1", { email: "novo@email.com" })
@@ -156,8 +161,8 @@ describe("PatientService", () => {
     });
 
     it("deve permitir manter o mesmo email sem erro", async () => {
-      mockRepo.findById.mockResolvedValue(mockPatient as any);
-      mockRepo.update.mockResolvedValue(mockPatient as any);
+      mockRepo.findById.mockResolvedValue(mockPatient as Patient);
+      mockRepo.update.mockResolvedValue(mockPatient as Patient);
 
       await service.update("uuid-patient-1", { email: "joao@email.com" });
 
@@ -173,7 +178,7 @@ describe("PatientService", () => {
     });
 
     it("deve lançar AppError 500 quando update retorna null", async () => {
-      mockRepo.findById.mockResolvedValue(mockPatient as any);
+      mockRepo.findById.mockResolvedValue(mockPatient as Patient);
       mockRepo.update.mockResolvedValue(null);
 
       await expect(
@@ -185,7 +190,7 @@ describe("PatientService", () => {
   // ─── delete ───────────────────────────────────────────────
   describe("delete", () => {
     it("deve deletar o paciente com sucesso", async () => {
-      mockRepo.findById.mockResolvedValue(mockPatient as any);
+      mockRepo.findById.mockResolvedValue(mockPatient as Patient);
       mockRepo.delete.mockResolvedValue(true);
 
       await expect(service.delete("uuid-patient-1")).resolves.toBeUndefined();
@@ -199,7 +204,7 @@ describe("PatientService", () => {
     });
 
     it("deve lançar AppError 500 quando delete falha", async () => {
-      mockRepo.findById.mockResolvedValue(mockPatient as any);
+      mockRepo.findById.mockResolvedValue(mockPatient as Patient);
       mockRepo.delete.mockResolvedValue(false);
 
       await expect(service.delete("uuid-patient-1")).rejects.toMatchObject({ statusCode: 500 });

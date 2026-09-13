@@ -48,7 +48,7 @@ export class SpecialtyService {
 
     const updateData: Partial<Specialty> = {};
     if (data.name) updateData.name = data.name;
-    if (data.description !== undefined) updateData.description = data.description as any;
+    if (data.description !== undefined) updateData.description = data.description;
 
     const updated = await this.specialtyRepository.update(id, updateData);
 

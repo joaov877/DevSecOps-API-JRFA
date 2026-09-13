@@ -136,7 +136,7 @@ export class AppointmentService {
     const updateData: Partial<Appointment> = {};
     if (data.dateTime) updateData.dateTime = new Date(data.dateTime);
     if (data.status) updateData.status = data.status;
-    if (data.notes !== undefined) updateData.notes = data.notes as any;
+    if (data.notes !== undefined) updateData.notes = data.notes;
 
     const updated = await this.appointmentRepository.update(id, updateData);
 
