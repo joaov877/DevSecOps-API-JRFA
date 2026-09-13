@@ -1,0 +1,57 @@
+name: Pipeline DevSecOps
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # Job 1: Verificação de Segredos expostos no código
+  secret-scan:
+    name: 1. Gitleaks - Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Executar Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Job 3: Análise Estática de Código (SAST)
+  sast:
+    name: 3. SonarQube - Análise SAST
+    needs: secret-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Análise SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v2.0.2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true
+
+  # Job 6: Análise de Segurança de IaC (Terraform)
+  iac-scan:
+    name: 6. Checkov - IaC Security Scan
+    needs: secret-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Executar Checkov Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          framework: terraform
+          output_format: cli
+          soft_fail: true
