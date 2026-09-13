@@ -122,10 +122,27 @@ jobs:
 
   dynamic-security-dast:
     name: Security (DAST - OWASP ZAP API)
-    needs: [code-quality, unit-tests] 
+    needs: [code-quality, unit-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
+    services:
+      postgres_db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: agendamento_consultas
+        ports:
+          - 5432:5432
+        # Garante que o runner vai esperar o Postgres estar 100% pronto antes de começar os passos
+        options: >-
+          --health-cmd "pg_isready -U postgres -d agendamento_consultas"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -145,8 +162,13 @@ jobs:
       - name: Start API in Background
         run: npm run start &
         env:
-          NODE_ENV: test
+          NODE_ENV: production
           PORT: 3000
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: agendamento_consultas
 
       - name: Wait for API to be ready
         run: npx wait-on http://localhost:3000 --timeout 30000
@@ -183,7 +205,7 @@ jobs:
           soft_fail: false # Faz a pipeline falhar se encontrar falhas de segurança
           output_format: cli
           # Pula checagens de monitoramento/auditoria rígidas que não se aplicam ao LocalStack
-          skip_check: |
+          skip_check: >-
             CKV_AWS_8,
             CKV_AWS_21,
             CKV_AWS_79,
