@@ -3,12 +3,23 @@ import express from "express";
 import cors from "cors";
 import routes from "./routes";
 import { errorHandler } from "./middlewares/errorHandler";
+import { metricsRegistry, metricsMiddleware } from "./middlewares/metrics";
+
 
 const app = express();
 
 // Middlewares globais
 app.use(cors());
 app.use(express.json());
+
+
+// Rota para expor métricas do Prometheus
+app.get("/metrics", async (_req, res) => {
+  res.set("Content-Type", metricsRegistry.contentType);
+  res.end(await metricsRegistry.metrics());
+});
+
+app.use(metricsMiddleware);
 
 // Rota de health check
 app.get("/api/health", (_req, res) => {

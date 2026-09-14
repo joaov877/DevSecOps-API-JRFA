@@ -12,6 +12,7 @@ dist/
 .docker/
 .localstack/
 coverage/
+grafana_data/
 
 .terraform/
 *.tfstate
